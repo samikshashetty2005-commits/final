@@ -7,15 +7,15 @@
     "records_used": 100000,
     "records_removed_duplicates_or_invalid": 0,
     "class_distribution": {
+      "Benign": 25000,
       "Pathogenic": 25000,
-      "Likely pathogenic": 25000,
       "Likely benign": 25000,
-      "Benign": 25000
+      "Likely pathogenic": 25000
     }
   },
   "model_info": {
     "algorithm": "HistGradientBoosting Classifier (XGBoost-style)",
-    "max_iter": 300,
+    "max_iter": 500,
     "classes": [
       "Benign",
       "Likely benign",
@@ -33,6 +33,19 @@
       "is_snv",
       "is_deletion",
       "is_insertion",
+      "gene_count",
+      "is_essential_splice",
+      "is_intronic",
+      "is_5utr",
+      "is_3utr",
+      "is_coding",
+      "is_synonymous",
+      "is_nonsense_frameshift",
+      "is_missense",
+      "is_duplication",
+      "is_deletion_type",
+      "is_insertion_type",
+      "is_cistron_cpg",
       "chromosome",
       "type",
       "is_transition",
@@ -41,13 +54,13 @@
     "train_size": 80000,
     "test_size": 20000,
     "metrics": {
-      "accuracy": 0.4683,
-      "precision_weighted": 0.4738,
-      "recall_weighted": 0.4683,
-      "f1_weighted": 0.4665,
-      "precision_macro": 0.4738,
-      "recall_macro": 0.4683,
-      "f1_macro": 0.4665
+      "accuracy": 0.6436,
+      "precision_weighted": 0.6453,
+      "recall_weighted": 0.6436,
+      "f1_weighted": 0.6439,
+      "precision_macro": 0.6453,
+      "recall_macro": 0.6436,
+      "f1_macro": 0.6439
     },
     "confusion_matrix": {
       "labels": [
@@ -58,67 +71,67 @@
       ],
       "matrix": [
         [
-          2144,
-          1836,
-          528,
-          492
+          3385,
+          1168,
+          252,
+          195
         ],
         [
-          1278,
-          2827,
-          628,
-          267
+          1441,
+          3278,
+          181,
+          100
         ],
         [
-          681,
-          1281,
-          1792,
-          1246
+          190,
+          90,
+          2934,
+          1786
         ],
         [
-          504,
-          843,
-          1050,
-          2603
+          143,
+          53,
+          1529,
+          3275
         ]
       ]
     },
     "classification_report": {
       "Benign": {
-        "precision": 0.4653787714347732,
-        "recall": 0.4288,
-        "f1-score": 0.4463412095347143,
+        "precision": 0.6561349098662531,
+        "recall": 0.677,
+        "f1-score": 0.6664041736391377,
         "support": 5000.0
       },
       "Likely benign": {
-        "precision": 0.4165316045380875,
-        "recall": 0.5654,
-        "f1-score": 0.47968100449647916,
+        "precision": 0.7143168446284593,
+        "recall": 0.6556,
+        "f1-score": 0.6837000730003129,
         "support": 5000.0
       },
       "Likely pathogenic": {
-        "precision": 0.448224112056028,
-        "recall": 0.3584,
-        "f1-score": 0.3983107357190487,
+        "precision": 0.5992647058823529,
+        "recall": 0.5868,
+        "f1-score": 0.5929668552950688,
         "support": 5000.0
       },
       "Pathogenic": {
-        "precision": 0.5648871527777778,
-        "recall": 0.5206,
-        "f1-score": 0.5418401332223147,
+        "precision": 0.6114637789395071,
+        "recall": 0.655,
+        "f1-score": 0.6324835843955195,
         "support": 5000.0
       },
-      "accuracy": 0.4683,
+      "accuracy": 0.6436,
       "macro avg": {
-        "precision": 0.47375541020166667,
-        "recall": 0.4683,
-        "f1-score": 0.46654327074313917,
+        "precision": 0.6452950598291431,
+        "recall": 0.6436,
+        "f1-score": 0.6438886715825097,
         "support": 20000.0
       },
       "weighted avg": {
-        "precision": 0.47375541020166667,
-        "recall": 0.4683,
-        "f1-score": 0.4665432707431392,
+        "precision": 0.645295059829143,
+        "recall": 0.6436,
+        "f1-score": 0.6438886715825097,
         "support": 20000.0
       }
     }

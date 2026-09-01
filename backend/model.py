@@ -114,8 +114,9 @@ class MutationPredictor:
         # Real annotations
         annotations = fetch_real_annotations(chrom, pos, ref, alt, self.clinvar_lookup)
         gene_symbol = annotations.get("gene", "Unknown") if annotations else "Unknown"
+        hgvs_name = annotations.get("hgvs_name", "") if annotations else ""
 
-        df_feat = prepare_feature_dataframe(chrom, pos, ref, alt, var_type=var_type, gene=gene_symbol)
+        df_feat = prepare_feature_dataframe(chrom, pos, ref, alt, var_type=var_type, gene=gene_symbol, hgvs_name=hgvs_name)
         
         # Predict class & probabilities
         probs = self.model.predict_proba(df_feat)[0]

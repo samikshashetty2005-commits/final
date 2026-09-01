@@ -4,13 +4,14 @@ import gzip
 import urllib.request
 import io
 import json
+import re
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix, classification_report
 import joblib
 
@@ -125,12 +126,13 @@ def process_raw_clinvar(df):
         cls_df = df[df['ClinicalSignificance'] == cls]
         balanced_chunks.append(cls_df.sample(n=target_sample_size, random_state=42))
         
-    balanced_df = pd.concat(balanced_chunks, ignore_index=True)
+    # Completely shuffle all 100,000 records randomly across classes
+    balanced_df = pd.concat(balanced_chunks, ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
     
     print("Balanced class distribution:\n", balanced_df['ClinicalSignificance'].value_counts())
     
     balanced_df.to_csv(CACHED_CSV_PATH, index=False)
-    print(f"Saved cleaned dataset to {CACHED_CSV_PATH}")
+    print(f"Saved cleaned and randomly shuffled dataset to {CACHED_CSV_PATH}")
     return balanced_df
 
 def calculate_gc_content(sequence):
@@ -150,8 +152,37 @@ def is_transition_mut(ref, alt):
             return 1
     return 0
 
+def extract_consequences(row):
+    name_str = str(row.get('Name', '')) if 'Name' in row else ''
+    type_str = str(row.get('Type', '')).lower()
+    ref_str = str(row.get('ReferenceAllele', '')).upper()
+    alt_str = str(row.get('AlternateAllele', '')).upper()
+    
+    is_essential_splice = 1 if re.search(r'c\.\d+[\+\-][12][A-Z>]', name_str) else 0
+    is_intronic = 1 if (re.search(r'c\.\d+[\+\-]\d+', name_str) or 'intron' in type_str) else 0
+    is_5utr = 1 if re.search(r'c\.\-\d+', name_str) else 0
+    is_3utr = 1 if re.search(r'c\.\*\d+', name_str) else 0
+    is_coding = 1 if 'p.' in name_str else 0
+    is_synonymous = 1 if (re.search(r'p\.[A-Z][a-z]{2}\d+=', name_str) or '=' in name_str) else 0
+    is_nonsense_frameshift = 1 if (re.search(r'p\.(?:Ter|\*|fs)', name_str) or 'frameshift' in type_str) else 0
+    is_missense = 1 if (is_coding and not is_synonymous and not is_nonsense_frameshift) else 0
+    is_duplication = 1 if ('dup' in name_str.lower() or 'duplication' in type_str) else 0
+    is_deletion = 1 if ('del' in name_str.lower() or 'deletion' in type_str) else 0
+    is_insertion = 1 if ('ins' in name_str.lower() or 'insertion' in type_str) else 0
+    is_cistron_cpg = 1 if ((ref_str == 'C' and alt_str == 'T') or (ref_str == 'G' and alt_str == 'A')) else 0
+    
+    return [
+        is_essential_splice, is_intronic, is_5utr, is_3utr,
+        is_coding, is_synonymous, is_nonsense_frameshift, is_missense,
+        is_duplication, is_deletion, is_insertion, is_cistron_cpg
+    ]
+
 def extract_features(df):
     df_feat = pd.DataFrame()
+    
+    # Gene frequency mapping
+    gene_series = df['GeneSymbol'].fillna('Unknown').astype(str) if 'GeneSymbol' in df.columns else pd.Series(['Unknown']*len(df))
+    gene_counts = gene_series.value_counts().to_dict()
     
     # Numerical features
     df_feat['position'] = df['Start'].astype(float)
@@ -166,20 +197,32 @@ def extract_features(df):
     df_feat['is_snv'] = ((df_feat['ref_len'] == 1) & (df_feat['alt_len'] == 1)).astype(int)
     df_feat['is_deletion'] = (df_feat['ref_len'] > df_feat['alt_len']).astype(int)
     df_feat['is_insertion'] = (df_feat['alt_len'] > df_feat['ref_len']).astype(int)
+    df_feat['gene_count'] = gene_series.map(gene_counts).fillna(1).astype(float)
     
     # Categorical features
     df_feat['chromosome'] = df['Chromosome'].astype(str)
     df_feat['type'] = df['Type'].astype(str).str.lower()
     df_feat['is_transition'] = [is_transition_mut(r, a) for r, a in zip(df['ReferenceAllele'], df['AlternateAllele'])]
-    df_feat['gene'] = df['GeneSymbol'].fillna('Unknown').astype(str) if 'GeneSymbol' in df.columns else 'Unknown'
+    df_feat['gene'] = gene_series
     
+    # Molecular consequence features
+    conseq_cols = [
+        'is_essential_splice', 'is_intronic', 'is_5utr', 'is_3utr',
+        'is_coding', 'is_synonymous', 'is_nonsense_frameshift', 'is_missense',
+        'is_duplication', 'is_deletion_type', 'is_insertion_type', 'is_cistron_cpg'
+    ]
+    conseq_df = pd.DataFrame(df.apply(extract_consequences, axis=1).tolist(), columns=conseq_cols)
+    
+    df_feat = pd.concat([df_feat, conseq_df], axis=1)
     return df_feat
 
 def train_and_evaluate():
-    from sklearn.ensemble import HistGradientBoostingClassifier
-    from sklearn.preprocessing import OrdinalEncoder
-
     df = download_or_load_clinvar()
+    
+    # Ensure CSV is shuffled if not already
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    df.to_csv(CACHED_CSV_PATH, index=False)
+    print(f"Verified shuffled CSV dataset at {CACHED_CSV_PATH}")
     
     total_records = len(df)
     class_distribution = df['ClinicalSignificance'].value_counts().to_dict()
@@ -192,7 +235,12 @@ def train_and_evaluate():
         X_features, y_target, test_size=0.20, random_state=42, stratify=y_target
     )
     
-    num_cols = ['position', 'ref_len', 'alt_len', 'len_diff', 'ref_gc', 'alt_gc', 'gc_diff', 'is_snv', 'is_deletion', 'is_insertion']
+    conseq_cols = [
+        'is_essential_splice', 'is_intronic', 'is_5utr', 'is_3utr',
+        'is_coding', 'is_synonymous', 'is_nonsense_frameshift', 'is_missense',
+        'is_duplication', 'is_deletion_type', 'is_insertion_type', 'is_cistron_cpg'
+    ]
+    num_cols = ['position', 'ref_len', 'alt_len', 'len_diff', 'ref_gc', 'alt_gc', 'gc_diff', 'is_snv', 'is_deletion', 'is_insertion', 'gene_count'] + conseq_cols
     cat_cols = ['chromosome', 'type', 'is_transition', 'gene']
     
     preprocessor = ColumnTransformer(
@@ -205,13 +253,14 @@ def train_and_evaluate():
     pipeline = Pipeline(steps=[
         ('preprocessor', preprocessor),
         ('classifier', HistGradientBoostingClassifier(
-            max_iter=300,
-            learning_rate=0.08,
+            max_iter=500,
+            learning_rate=0.06,
+            max_leaf_nodes=63,
             random_state=42
         ))
     ])
     
-    print("Training HistGradientBoosting (XGBoost-style) ensemble model...")
+    print("Training HistGradientBoosting ensemble model with enhanced molecular features...")
     pipeline.fit(X_train, y_train)
     
     print("Evaluating model on real ClinVar test set...")
@@ -248,7 +297,7 @@ def train_and_evaluate():
         },
         "model_info": {
             "algorithm": "HistGradientBoosting Classifier (XGBoost-style)",
-            "max_iter": 300,
+            "max_iter": 500,
             "classes": labels,
             "features_used": num_cols + cat_cols,
             "train_size": len(X_train),

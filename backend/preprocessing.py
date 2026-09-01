@@ -108,8 +108,42 @@ def infer_variant_type(ref, alt):
         return "insertion"
     else:
         return "indel"
-#converting variant inputs into numerical features
-def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown"):
+def extract_consequences_from_inputs(name_str, type_str, ref_str, alt_str):
+    name_str = str(name_str)
+    type_str = str(type_str).lower()
+    ref_str = str(ref_str).upper()
+    alt_str = str(alt_str).upper()
+    
+    is_essential_splice = 1 if re.search(r'c\.\d+[\+\-][12][A-Z>]', name_str) else 0
+    is_intronic = 1 if (re.search(r'c\.\d+[\+\-]\d+', name_str) or 'intron' in type_str) else 0
+    is_5utr = 1 if re.search(r'c\.\-\d+', name_str) else 0
+    is_3utr = 1 if re.search(r'c\.\*\d+', name_str) else 0
+    is_coding = 1 if 'p.' in name_str else 0
+    is_synonymous = 1 if (re.search(r'p\.[A-Z][a-z]{2}\d+=', name_str) or '=' in name_str) else 0
+    is_nonsense_frameshift = 1 if (re.search(r'p\.(?:Ter|\*|fs)', name_str) or 'frameshift' in type_str) else 0
+    is_missense = 1 if (is_coding and not is_synonymous and not is_nonsense_frameshift) else 0
+    is_duplication = 1 if ('dup' in name_str.lower() or 'duplication' in type_str) else 0
+    is_deletion = 1 if ('del' in name_str.lower() or 'deletion' in type_str) else 0
+    is_insertion = 1 if ('ins' in name_str.lower() or 'insertion' in type_str) else 0
+    is_cistron_cpg = 1 if ((ref_str == 'C' and alt_str == 'T') or (ref_str == 'G' and alt_str == 'A')) else 0
+    
+    return {
+        'is_essential_splice': is_essential_splice,
+        'is_intronic': is_intronic,
+        'is_5utr': is_5utr,
+        'is_3utr': is_3utr,
+        'is_coding': is_coding,
+        'is_synonymous': is_synonymous,
+        'is_nonsense_frameshift': is_nonsense_frameshift,
+        'is_missense': is_missense,
+        'is_duplication': is_duplication,
+        'is_deletion_type': is_deletion,
+        'is_insertion_type': is_insertion,
+        'is_cistron_cpg': is_cistron_cpg
+    }
+
+# converting variant inputs into numerical features
+def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown", hgvs_name=""):
     if var_type is None:
         var_type = infer_variant_type(ref, alt)
         
@@ -119,7 +153,11 @@ def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown
     ref_gc = calculate_gc_content(ref)
     alt_gc = calculate_gc_content(alt)
     
-    df_feat = pd.DataFrame([{
+    gene_symbol = str(gene) if gene else 'Unknown'
+    
+    conseq_dict = extract_consequences_from_inputs(hgvs_name, var_type, ref, alt)
+    
+    feat_dict = {
         'position': float(pos),
         'ref_len': float(ref_len),
         'alt_len': float(alt_len),
@@ -130,13 +168,15 @@ def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown
         'is_snv': 1 if (ref_len == 1 and alt_len == 1) else 0,
         'is_deletion': 1 if (ref_len > alt_len) else 0,
         'is_insertion': 1 if (alt_len > ref_len) else 0,
+        'gene_count': 10.0 if gene_symbol != 'Unknown' else 1.0,
         'chromosome': str(chrom_str),
         'type': str(var_type).lower(),
         'is_transition': is_transition_mut(ref, alt),
-        'gene': str(gene) if gene else 'Unknown'
-    }])
+        'gene': gene_symbol
+    }
+    feat_dict.update(conseq_dict)
     
-    return df_feat
+    return pd.DataFrame([feat_dict])
 
 def translate_sequence(dna_seq):
     dna_seq = dna_seq.upper().replace('U', 'T')
