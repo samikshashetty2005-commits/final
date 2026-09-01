@@ -1,0 +1,126 @@
+{
+  "dataset_info": {
+    "source": "NCBI ClinVar (Official Variant Summary)",
+    "version_date": "2026-08 Live NCBI Release",
+    "assembly": "GRCh38",
+    "total_records_ingested": 100000,
+    "records_used": 100000,
+    "records_removed_duplicates_or_invalid": 0,
+    "class_distribution": {
+      "Pathogenic": 25000,
+      "Likely pathogenic": 25000,
+      "Likely benign": 25000,
+      "Benign": 25000
+    }
+  },
+  "model_info": {
+    "algorithm": "HistGradientBoosting Classifier (XGBoost-style)",
+    "max_iter": 300,
+    "classes": [
+      "Benign",
+      "Likely benign",
+      "Likely pathogenic",
+      "Pathogenic"
+    ],
+    "features_used": [
+      "position",
+      "ref_len",
+      "alt_len",
+      "len_diff",
+      "ref_gc",
+      "alt_gc",
+      "gc_diff",
+      "is_snv",
+      "is_deletion",
+      "is_insertion",
+      "chromosome",
+      "type",
+      "is_transition",
+      "gene"
+    ],
+    "train_size": 80000,
+    "test_size": 20000,
+    "metrics": {
+      "accuracy": 0.4683,
+      "precision_weighted": 0.4738,
+      "recall_weighted": 0.4683,
+      "f1_weighted": 0.4665,
+      "precision_macro": 0.4738,
+      "recall_macro": 0.4683,
+      "f1_macro": 0.4665
+    },
+    "confusion_matrix": {
+      "labels": [
+        "Benign",
+        "Likely benign",
+        "Likely pathogenic",
+        "Pathogenic"
+      ],
+      "matrix": [
+        [
+          2144,
+          1836,
+          528,
+          492
+        ],
+        [
+          1278,
+          2827,
+          628,
+          267
+        ],
+        [
+          681,
+          1281,
+          1792,
+          1246
+        ],
+        [
+          504,
+          843,
+          1050,
+          2603
+        ]
+      ]
+    },
+    "classification_report": {
+      "Benign": {
+        "precision": 0.4653787714347732,
+        "recall": 0.4288,
+        "f1-score": 0.4463412095347143,
+        "support": 5000.0
+      },
+      "Likely benign": {
+        "precision": 0.4165316045380875,
+        "recall": 0.5654,
+        "f1-score": 0.47968100449647916,
+        "support": 5000.0
+      },
+      "Likely pathogenic": {
+        "precision": 0.448224112056028,
+        "recall": 0.3584,
+        "f1-score": 0.3983107357190487,
+        "support": 5000.0
+      },
+      "Pathogenic": {
+        "precision": 0.5648871527777778,
+        "recall": 0.5206,
+        "f1-score": 0.5418401332223147,
+        "support": 5000.0
+      },
+      "accuracy": 0.4683,
+      "macro avg": {
+        "precision": 0.47375541020166667,
+        "recall": 0.4683,
+        "f1-score": 0.46654327074313917,
+        "support": 20000.0
+      },
+      "weighted avg": {
+        "precision": 0.47375541020166667,
+        "recall": 0.4683,
+        "f1-score": 0.4665432707431392,
+        "support": 20000.0
+      }
+    }
+  }
+}
