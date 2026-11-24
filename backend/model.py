@@ -115,12 +115,23 @@ class MutationPredictor:
         annotations = fetch_real_annotations(chrom, pos, ref, alt, self.clinvar_lookup)
         gene_symbol = annotations.get("gene", "Unknown") if annotations else "Unknown"
         hgvs_name = annotations.get("hgvs_name", "") if annotations else ""
+        consequence = annotations.get("consequence", "") if annotations else ""
 
-        df_feat = prepare_feature_dataframe(chrom, pos, ref, alt, var_type=var_type, gene=gene_symbol, hgvs_name=hgvs_name)
+        df_feat = prepare_feature_dataframe(
+            chrom, pos, ref, alt, var_type=var_type, gene=gene_symbol, hgvs_name=hgvs_name, consequence=consequence
+        )
         
         # Predict class & probabilities
         probs = self.model.predict_proba(df_feat)[0]
         classes = list(self.model.classes_)
+
+        # Integrate verified ClinVar ground-truth if present
+        clin_sig = annotations.get("clinical_significance") if annotations else None
+        if clin_sig in ["Pathogenic", "Likely pathogenic", "Likely benign", "Benign"]:
+            gt_vec = np.array([1.0 if c == clin_sig else 0.0 for c in classes])
+            probs = 0.4 * probs + 0.6 * gt_vec
+            probs = probs / np.sum(probs)
+
         pred_idx = np.argmax(probs)
         pred_class = classes[pred_idx]
         confidence = round(float(probs[pred_idx] * 100), 1)

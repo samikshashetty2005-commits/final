@@ -108,23 +108,26 @@ def infer_variant_type(ref, alt):
         return "insertion"
     else:
         return "indel"
-def extract_consequences_from_inputs(name_str, type_str, ref_str, alt_str):
-    name_str = str(name_str)
+def extract_consequences_from_inputs(name_str, type_str, ref_str, alt_str, consequence_str=""):
+    name_combined = (str(name_str) + " " + str(consequence_str)).lower()
     type_str = str(type_str).lower()
     ref_str = str(ref_str).upper()
     alt_str = str(alt_str).upper()
     
-    is_essential_splice = 1 if re.search(r'c\.\d+[\+\-][12][A-Z>]', name_str) else 0
-    is_intronic = 1 if (re.search(r'c\.\d+[\+\-]\d+', name_str) or 'intron' in type_str) else 0
-    is_5utr = 1 if re.search(r'c\.\-\d+', name_str) else 0
-    is_3utr = 1 if re.search(r'c\.\*\d+', name_str) else 0
-    is_coding = 1 if 'p.' in name_str else 0
-    is_synonymous = 1 if (re.search(r'p\.[A-Z][a-z]{2}\d+=', name_str) or '=' in name_str) else 0
-    is_nonsense_frameshift = 1 if (re.search(r'p\.(?:Ter|\*|fs)', name_str) or 'frameshift' in type_str) else 0
-    is_missense = 1 if (is_coding and not is_synonymous and not is_nonsense_frameshift) else 0
-    is_duplication = 1 if ('dup' in name_str.lower() or 'duplication' in type_str) else 0
-    is_deletion = 1 if ('del' in name_str.lower() or 'deletion' in type_str) else 0
-    is_insertion = 1 if ('ins' in name_str.lower() or 'insertion' in type_str) else 0
+    is_essential_splice = 1 if (re.search(r'c\.\d+[\+\-][12][A-Z>]', str(name_str)) or 'splice' in name_combined) else 0
+    is_intronic = 1 if (re.search(r'c\.\d+[\+\-]\d+', str(name_str)) or 'intron' in type_str or 'intron' in name_combined) else 0
+    is_5utr = 1 if (re.search(r'c\.\-\d+', str(name_str)) or '5_prime_utr' in name_combined or '5utr' in name_combined) else 0
+    is_3utr = 1 if (re.search(r'c\.\*\d+', str(name_str)) or '3_prime_utr' in name_combined or '3utr' in name_combined) else 0
+    
+    is_coding = 1 if ('p.' in str(name_str) or 'non_synonymous' in name_combined or 'missense' in name_combined or 'stop' in name_combined or 'frameshift' in name_combined or 'coding' in name_combined) else 0
+    
+    is_synonymous = 1 if (re.search(r'p\.[A-Z][a-z]{2}\d+=', str(name_str)) or '=' in str(name_str) or 'synonymous' in name_combined) and 'non_synonymous' not in name_combined else 0
+    is_nonsense_frameshift = 1 if (re.search(r'p\.(?:Ter|\*|fs)', str(name_str)) or 'frameshift' in type_str or 'stop_gained' in name_combined or 'frameshift' in name_combined or 'nonsense' in name_combined) else 0
+    is_missense = 1 if (is_coding and not is_synonymous and not is_nonsense_frameshift) or ('non_synonymous' in name_combined or 'missense' in name_combined) else 0
+    
+    is_duplication = 1 if ('dup' in name_combined or 'duplication' in type_str) else 0
+    is_deletion = 1 if ('del' in name_combined or 'deletion' in type_str or len(ref_str) > len(alt_str)) else 0
+    is_insertion = 1 if ('ins' in name_combined or 'insertion' in type_str or len(alt_str) > len(ref_str)) else 0
     is_cistron_cpg = 1 if ((ref_str == 'C' and alt_str == 'T') or (ref_str == 'G' and alt_str == 'A')) else 0
     
     return {
@@ -143,7 +146,7 @@ def extract_consequences_from_inputs(name_str, type_str, ref_str, alt_str):
     }
 
 # converting variant inputs into numerical features
-def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown", hgvs_name=""):
+def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown", hgvs_name="", consequence=""):
     if var_type is None:
         var_type = infer_variant_type(ref, alt)
         
@@ -155,7 +158,7 @@ def prepare_feature_dataframe(chrom, pos, ref, alt, var_type=None, gene="Unknown
     
     gene_symbol = str(gene) if gene else 'Unknown'
     
-    conseq_dict = extract_consequences_from_inputs(hgvs_name, var_type, ref, alt)
+    conseq_dict = extract_consequences_from_inputs(hgvs_name, var_type, ref, alt, consequence_str=consequence)
     
     feat_dict = {
         'position': float(pos),
@@ -259,7 +262,7 @@ def simulate_sequence_mutation(orig_seq, pos_1based, orig_base, new_base):
 
 def fetch_real_annotations(chrom, pos, ref, alt, clinvar_lookup=None):
     """
-    Fetches real annotations from local ClinVar lookup and external MyVariant.info API.
+    Fetches real annotations from local SQLite ClinVar lookup, memory dict, and external MyVariant.info API.
     Does NOT invent fake annotations.
     """
     annotations = {
@@ -269,26 +272,57 @@ def fetch_real_annotations(chrom, pos, ref, alt, clinvar_lookup=None):
         "allele_frequency": "Unavailable",
         "variation_id": "N/A",
         "hgvs_name": "N/A",
+        "clinical_significance": None,
         "annotation_source": "Local ClinVar DB & MyVariant.info REST API",
         "is_real_data": True,
         "api_status": "Checked"
     }
     
-    key = f"{chrom}:{pos}:{ref}>{alt}"
+    clean_chrom_num = str(chrom).replace('chr', '').strip()
+    key1 = f"chr{clean_chrom_num}:{pos}:{ref}>{alt}"
+    key2 = f"{clean_chrom_num}:{pos}:{ref}>{alt}"
+    key3 = f"chr{clean_chrom_num}:{pos} {ref}>{alt}"
     
-    # 1. Local ClinVar match
-    if clinvar_lookup and key in clinvar_lookup:
-        entry = clinvar_lookup[key]
-        annotations["gene"] = entry.get("gene", annotations["gene"])
-        annotations["variation_id"] = entry.get("variation_id", annotations["variation_id"])
-        annotations["hgvs_name"] = entry.get("hgvs_name", annotations["hgvs_name"])
-        annotations["consequence"] = f"ClinVar {entry.get('type', 'Variant')}"
-        annotations["annotation_source"] = "ClinVar Verified Record (Local Database)"
-        return annotations
+    # 1. Try SQLite database (Contains 2.5M ClinVar variants)
+    db_path = os.path.join(os.path.dirname(__file__), "clinvar_lookup.db")
+    if os.path.exists(db_path):
+        try:
+            import sqlite3
+            conn = sqlite3.connect(db_path, timeout=2.0)
+            cursor = conn.cursor()
+            for k in [key1, key2, key3]:
+                cursor.execute("SELECT gene, type, clinical_significance, variation_id, hgvs_name FROM clinvar WHERE key = ?", (k,))
+                row = cursor.fetchone()
+                if row:
+                    gene, var_type, clin_sig, var_id, hgvs_name = row
+                    annotations["gene"] = gene if gene and gene != "N/A" else annotations["gene"]
+                    annotations["variation_id"] = var_id if var_id and var_id != "N/A" else annotations["variation_id"]
+                    annotations["hgvs_name"] = hgvs_name if hgvs_name and hgvs_name != "N/A" else annotations["hgvs_name"]
+                    annotations["consequence"] = f"ClinVar {var_type}"
+                    annotations["clinical_significance"] = clin_sig if clin_sig and clin_sig != "Unknown" else None
+                    annotations["annotation_source"] = "ClinVar 2.5M Verified DB (SQLite Index)"
+                    conn.close()
+                    return annotations
+            conn.close()
+        except Exception:
+            pass
+
+    # 2. Local memory lookup match
+    if clinvar_lookup:
+        for k in [key1, key2, key3]:
+            if k in clinvar_lookup:
+                entry = clinvar_lookup[k]
+                annotations["gene"] = entry.get("gene", annotations["gene"])
+                annotations["variation_id"] = entry.get("variation_id", annotations["variation_id"])
+                annotations["hgvs_name"] = entry.get("hgvs_name", annotations["hgvs_name"])
+                annotations["consequence"] = f"ClinVar {entry.get('type', 'Variant')}"
+                annotations["clinical_significance"] = entry.get("clinical_significance", None)
+                annotations["annotation_source"] = "ClinVar Verified Record (Local Database)"
+                return annotations
         
-    # 2. Try MyVariant.info REST API
+    # 3. Try MyVariant.info REST API
     try:
-        clean_chrom = chrom.lower() if str(chrom).startswith('chr') else f"chr{chrom}"
+        clean_chrom = f"chr{clean_chrom_num}"
         mv_id = f"{clean_chrom}:g.{pos}{ref}>{alt}"
         url = f"https://myvariant.info/v1/variant/{mv_id}"
         resp = requests.get(url, timeout=3)
@@ -304,6 +338,13 @@ def fetch_real_annotations(chrom, pos, ref, alt, clinvar_lookup=None):
             elif isinstance(clinvar_info, dict) and clinvar_info.get('gene'):
                 annotations["gene"] = clinvar_info.get('gene', {}).get('symbol', annotations["gene"])
                 
+            if isinstance(clinvar_info, dict) and clinvar_info.get('rcv'):
+                rcv = clinvar_info.get('rcv')
+                if isinstance(rcv, list) and len(rcv) > 0:
+                    annotations["clinical_significance"] = rcv[0].get('clinical_significance')
+                elif isinstance(rcv, dict):
+                    annotations["clinical_significance"] = rcv.get('clinical_significance')
+
             if isinstance(dbsnp, dict) and dbsnp.get('rsid'):
                 annotations["hgvs_name"] = f"dbSNP: {dbsnp.get('rsid')}"
                 

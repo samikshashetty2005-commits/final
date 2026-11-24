@@ -69,13 +69,13 @@ def get_dataset_info():
         return {
             "source": "NCBI ClinVar (Official Variant Summary)",
             "assembly": "GRCh38",
-            "total_records_ingested": 100000,
-            "records_used": 100000,
+            "total_records_ingested": 64000,
+            "records_used": 64000,
             "class_distribution": {
-                "Pathogenic": 25000,
-                "Likely pathogenic": 25000,
-                "Likely benign": 25000,
-                "Benign": 25000
+                "Pathogenic": 16000,
+                "Likely pathogenic": 16000,
+                "Likely benign": 16000,
+                "Benign": 16000
             }
         }
     return info

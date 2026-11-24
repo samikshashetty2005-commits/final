@@ -34,7 +34,7 @@ The sandbox ingests real NCBI ClinVar variant records, trains a multi-class Logi
    - Ranks variants from highest to lowest severity score.
 
 5. **ClinVar Dataset & ML Evaluation Dashboard**:
-   - Displays real NCBI ClinVar dataset statistics (100,000 balanced records).
+   - Displays real NCBI ClinVar dataset statistics (64,000 balanced records).
    - Displays test set evaluation metrics (Accuracy, Macro/Weighted Precision, Recall, F1-Score).
    - Interactive 4x4 Confusion Matrix grid.
 
@@ -50,7 +50,7 @@ The sandbox ingests real NCBI ClinVar variant records, trains a multi-class Logi
   2. `Likely pathogenic`
   3. `Likely benign`
   4. `Benign`
-- **Cleaning & Balancing**: Filtered assembly, cleaned chromosome names, extracted VCF coordinates and alleles (`PositionVCF`, `ReferenceAlleleVCF`, `AlternateAlleleVCF`), deduplicated coordinates, and applied reproducible stratified sampling (25,000 records per class = 100,000 total real ClinVar variants).
+- **Cleaning & Balancing**: Filtered assembly, cleaned chromosome names, extracted VCF coordinates and alleles (`PositionVCF`, `ReferenceAlleleVCF`, `AlternateAlleleVCF`), deduplicated coordinates, and applied reproducible stratified sampling (16,000 records per class = 64,000 total real ClinVar variants).
 
 ### Feature Engineering (Non-Leaking)
 - **Numeric**: Genomic VCF position, Reference allele length, Alternate allele length, Length difference (`alt_len - ref_len`), Reference GC content ratio, Alternate GC content ratio, GC difference (`gc_diff`), SNV indicator (`is_snv`), Deletion indicator (`is_deletion`), Insertion indicator (`is_insertion`).

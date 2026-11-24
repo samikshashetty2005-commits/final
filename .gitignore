@@ -27,6 +27,10 @@ wheels/
 *.gz
 variant_summary*.txt
 cached_clinvar.csv
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
 
 # Virtualenv
 venv/

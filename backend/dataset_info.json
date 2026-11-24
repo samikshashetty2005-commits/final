@@ -3,14 +3,14 @@
     "source": "NCBI ClinVar (Official Variant Summary)",
     "version_date": "2026-08 Live NCBI Release",
     "assembly": "GRCh38",
-    "total_records_ingested": 100000,
-    "records_used": 100000,
+    "total_records_ingested": 64000,
+    "records_used": 64000,
     "records_removed_duplicates_or_invalid": 0,
     "class_distribution": {
-      "Benign": 25000,
-      "Pathogenic": 25000,
-      "Likely benign": 25000,
-      "Likely pathogenic": 25000
+      "Likely pathogenic": 16000,
+      "Benign": 16000,
+      "Likely benign": 16000,
+      "Pathogenic": 16000
     }
   },
   "model_info": {
@@ -51,16 +51,16 @@
       "is_transition",
       "gene"
     ],
-    "train_size": 80000,
-    "test_size": 20000,
+    "train_size": 51200,
+    "test_size": 12800,
     "metrics": {
-      "accuracy": 0.6436,
-      "precision_weighted": 0.6453,
-      "recall_weighted": 0.6436,
-      "f1_weighted": 0.6439,
-      "precision_macro": 0.6453,
-      "recall_macro": 0.6436,
-      "f1_macro": 0.6439
+      "accuracy": 0.6343,
+      "precision_weighted": 0.6364,
+      "recall_weighted": 0.6343,
+      "f1_weighted": 0.6344,
+      "precision_macro": 0.6364,
+      "recall_macro": 0.6343,
+      "f1_macro": 0.6344
     },
     "confusion_matrix": {
       "labels": [
@@ -71,68 +71,68 @@
       ],
       "matrix": [
         [
-          3385,
-          1168,
-          252,
-          195
+          2153,
+          721,
+          202,
+          124
         ],
         [
-          1441,
-          3278,
-          181,
-          100
+          941,
+          2053,
+          133,
+          73
         ],
         [
-          190,
-          90,
-          2934,
-          1786
+          152,
+          65,
+          1787,
+          1196
         ],
         [
-          143,
-          53,
-          1529,
-          3275
+          88,
+          38,
+          948,
+          2126
         ]
       ]
     },
     "classification_report": {
       "Benign": {
-        "precision": 0.6561349098662531,
-        "recall": 0.677,
-        "f1-score": 0.6664041736391377,
-        "support": 5000.0
+        "precision": 0.6457708458308339,
+        "recall": 0.6728125,
+        "f1-score": 0.6590143862871135,
+        "support": 3200.0
       },
       "Likely benign": {
-        "precision": 0.7143168446284593,
-        "recall": 0.6556,
-        "f1-score": 0.6837000730003129,
-        "support": 5000.0
+        "precision": 0.713590545707334,
+        "recall": 0.6415625,
+        "f1-score": 0.6756623333881849,
+        "support": 3200.0
       },
       "Likely pathogenic": {
-        "precision": 0.5992647058823529,
-        "recall": 0.5868,
-        "f1-score": 0.5929668552950688,
-        "support": 5000.0
+        "precision": 0.5820846905537459,
+        "recall": 0.5584375,
+        "f1-score": 0.5700159489633174,
+        "support": 3200.0
       },
       "Pathogenic": {
-        "precision": 0.6114637789395071,
-        "recall": 0.655,
-        "f1-score": 0.6324835843955195,
-        "support": 5000.0
+        "precision": 0.6041489059391872,
+        "recall": 0.664375,
+        "f1-score": 0.6328322667063551,
+        "support": 3200.0
       },
-      "accuracy": 0.6436,
+      "accuracy": 0.634296875,
       "macro avg": {
-        "precision": 0.6452950598291431,
-        "recall": 0.6436,
-        "f1-score": 0.6438886715825097,
-        "support": 20000.0
+        "precision": 0.6363987470077752,
+        "recall": 0.6342968750000001,
+        "f1-score": 0.6343812338362427,
+        "support": 12800.0
       },
       "weighted avg": {
-        "precision": 0.645295059829143,
-        "recall": 0.6436,
-        "f1-score": 0.6438886715825097,
-        "support": 20000.0
+        "precision": 0.6363987470077752,
+        "recall": 0.634296875,
+        "f1-score": 0.6343812338362427,
+        "support": 12800.0
       }
     }
   }

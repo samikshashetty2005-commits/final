@@ -39,15 +39,28 @@ def clean_significance(s):
 def download_or_load_clinvar():
     if os.path.exists(CACHED_CSV_PATH):
         df = pd.read_csv(CACHED_CSV_PATH, low_memory=False)
-        if len(df) >= 100000 and set(df['ClinicalSignificance'].unique()).issubset(set(TARGET_CLASSES)):
-            print(f"Loading valid cached dataset from {CACHED_CSV_PATH} ({len(df)} records)...")
-            return df
-        else:
-            print("Removing cached CSV (re-building for 100,000 balanced records)...")
-            try:
-                os.remove(CACHED_CSV_PATH)
-            except Exception:
-                pass
+        if len(df) == 64000 and set(df['ClinicalSignificance'].unique()).issubset(set(TARGET_CLASSES)):
+            counts = df['ClinicalSignificance'].value_counts()
+            if all(c == 16000 for c in counts):
+                print(f"Loading valid cached dataset from {CACHED_CSV_PATH} ({len(df)} records)...")
+                return df
+        if len(df) >= 64000 and set(df['ClinicalSignificance'].unique()).issubset(set(TARGET_CLASSES)):
+            counts = df['ClinicalSignificance'].value_counts()
+            if all(c >= 16000 for c in counts.values):
+                print("Sampling 64,000 balanced records (16,000 per class) from existing dataset...")
+                balanced_chunks = []
+                for cls in TARGET_CLASSES:
+                    cls_df = df[df['ClinicalSignificance'] == cls]
+                    balanced_chunks.append(cls_df.sample(n=16000, random_state=42))
+                balanced_df = pd.concat(balanced_chunks, ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
+                balanced_df.to_csv(CACHED_CSV_PATH, index=False)
+                print(f"Saved 64,000 balanced records to {CACHED_CSV_PATH}")
+                return balanced_df
+        print("Removing non-matching cached CSV (re-building for 64,000 balanced records)...")
+        try:
+            os.remove(CACHED_CSV_PATH)
+        except Exception:
+            pass
 
     txt_path = os.path.join(DATA_DIR, "variant_summary.txt")
     if not os.path.exists(txt_path):
@@ -118,7 +131,7 @@ def process_raw_clinvar(df):
     counts = df['ClinicalSignificance'].value_counts()
     print("Class counts before balancing:\n", counts)
     
-    target_sample_size = min(counts.min(), 25000)
+    target_sample_size = min(counts.min(), 16000)
     print(f"Sampling {target_sample_size} records per class (Total: {target_sample_size * 4} records)...")
     
     balanced_chunks = []
@@ -126,7 +139,7 @@ def process_raw_clinvar(df):
         cls_df = df[df['ClinicalSignificance'] == cls]
         balanced_chunks.append(cls_df.sample(n=target_sample_size, random_state=42))
         
-    # Completely shuffle all 100,000 records randomly across classes
+    # Completely shuffle all 64,000 records randomly across classes
     balanced_df = pd.concat(balanced_chunks, ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
     
     print("Balanced class distribution:\n", balanced_df['ClinicalSignificance'].value_counts())
